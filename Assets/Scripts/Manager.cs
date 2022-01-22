@@ -15,8 +15,6 @@ public class Manager : MonoBehaviour
     [SerializeField] Text _count;
     [SerializeField] UnityEngine.UI.Image _rare;
     [SerializeField] Color[] _rareColor = new Color[3];
-    [SerializeField] UnityEngine.UI.Button _gacha;
-    [SerializeField] UnityEngine.UI.Button _next;
 
     [Serializable]
     public class Notion
@@ -51,7 +49,7 @@ public class Manager : MonoBehaviour
 
     List<Human> _humans = new List<Human>();
     List<Human> _stock = new List<Human>();
-    List<Human> _nextStock = new List<Human>();
+    Human _current = null;
 
     private void Start()
     {
@@ -70,7 +68,6 @@ public class Manager : MonoBehaviour
             {
                 _humans.Add(new Human() { Name = d.Name, Check = d.Check });
             }
-            _gacha.enabled = true;
             ResetGacha();
         });
     }
@@ -121,11 +118,77 @@ public class Manager : MonoBehaviour
         _hitName.text = tgt.Name;
         _rare.color = _rareColor[tgt.Rare];
 
+        _current = tgt;
         _stock.Remove(tgt);
 
         if (_stock.Count <= 0) ResetGacha();
 
         _box.sizeDelta = new Vector2(260, 54 * _stock.Count);
         _count.text = _stock.Count + "人";
+    }
+
+    public void DoPickup()
+    {
+        if (_stock.Count <= 0) ResetGacha();
+
+        //ピックアップ抽選
+        int pickup = UnityEngine.Random.Range(0, 10);
+        int[] prate = new int[] { 6, 8, 99 };
+        int pickupRare = 0;
+        for(int i = 0; i < 3; ++i)
+        {
+            if(pickup < prate[i] && _stock.Any(s => s.Rare == 2 - i))
+            {
+                pickupRare = 2 - i;
+                break;
+            }
+        }
+
+        var pickups = _stock.Where(s => s.Rare == pickupRare);
+        int total = pickups.Sum(s => s.Rate);
+        int rand = UnityEngine.Random.Range(0, total);
+
+        Human tgt = null;
+        foreach (var s in pickups)
+        {
+            if (rand < s.Rate)
+            {
+                tgt = s;
+                break;
+            }
+
+            rand -= s.Rate;
+        }
+
+        Destroy(tgt.Button);
+
+        _hitName.text = tgt.Name;
+        _rare.color = _rareColor[tgt.Rare];
+
+        _current = tgt;
+        _stock.Remove(tgt);
+
+        if (_stock.Count <= 0) ResetGacha();
+
+        _box.sizeDelta = new Vector2(260, 54 * _stock.Count);
+        _count.text = _stock.Count + "人";
+    }
+
+    public void DoStock()
+    {
+        if (_current == null) return;
+
+        _current.Button = GameObject.Instantiate(_userPrefab, _box.transform);
+        _current.Button.GetComponentInChildren<Text>().text = _current.Name;
+        _current.Button.GetComponentInChildren<UnityEngine.UI.Image>().color = _rareColor[_current.Rare];
+
+        _stock.Add(_current);
+
+        _hitName.text = "";
+        _rare.color = _rareColor[0];
+
+        _count.text = _stock.Count + "人";
+        _box.sizeDelta = new Vector2(260, 54 * _stock.Count);
+        _current = null;
     }
 }
